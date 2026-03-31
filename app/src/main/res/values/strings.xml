@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">京东云额度</string>
+    <string name="widget_name">京东云额度</string>
+    <string name="widget_description">显示京东云 JoyBuilder 套餐额度</string>
+</resources>
