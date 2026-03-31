@@ -1,7 +1,7 @@
 package com.yi.jdcloud.data
 
 import android.webkit.CookieManager
-import android.webkit.WebView
+import android.webkit.ValueCallback
 import com.yi.jdcloud.domain.LoginState
 
 /**
@@ -9,13 +9,16 @@ import com.yi.jdcloud.domain.LoginState
  *
  * 需要的字段：pin, thor, qid_uid, qid_sid, jdv
  *
- * 使用方式：
- * 1. 用 WebView 加载 https://joybuilder-console.jdcloud.com/ 并完成登录
- * 2. 登录成功后，调用 extract() 获取 LoginState
+ * 注意：登录后 cookie 可能在 joybuilder-console.jdcloud.com 或其父域 .jdcloud.com
  */
 object CookieExtractor {
 
-    private const val DOMAIN = "joybuilder-console.jdcloud.com"
+    private val DOMAINS = listOf(
+        "joybuilder-console.jdcloud.com",
+        ".joybuilder-console.jdcloud.com",
+        ".jdcloud.com",
+        "jdcloud.com"
+    )
 
     /**
      * 从 CookieManager 中提取登录态。
@@ -23,19 +26,30 @@ object CookieExtractor {
      */
     fun extract(): LoginState {
         val cookieManager = CookieManager.getInstance()
-        cookieManager.flush()
 
-        val allCookies = cookieManager.getCookie(DOMAIN) ?: return LoginState()
+        val allCookies = buildMap {
+            for (domain in DOMAINS) {
+                try {
+                    val cookie = cookieManager.getCookie(domain)
+                    if (!cookie.isNullOrBlank()) {
+                        parseCookieString(cookie).forEach { (k, v) -> putIfAbsent(k, v) }
+                    }
+                } catch (e: Exception) {
+                    // Try next domain
+                }
+            }
+        }
 
-        val map = parseCookieString(allCookies)
+        val pin = allCookies["pin"] ?: ""
+        val thor = allCookies["thor"] ?: ""
 
         return LoginState(
-            isLoggedIn = map.containsKey("thor") && map["thor"]?.isNotBlank() == true,
-            pin = map["pin"] ?: "",
-            thor = map["thor"] ?: "",
-            qidUid = map["qid_uid"] ?: "",
-            qidSid = map["qid_sid"] ?: "",
-            jdv = map["jdv"] ?: ""
+            isLoggedIn = thor.isNotBlank(),
+            pin = pin,
+            thor = thor,
+            qidUid = allCookies["qid_uid"] ?: "",
+            qidSid = allCookies["qid_sid"] ?: "",
+            jdv = allCookies["jdv"] ?: ""
         )
     }
 
@@ -43,9 +57,15 @@ object CookieExtractor {
      * 清空京东云相关的 Cookie。
      */
     fun clear() {
-        val cookieManager = CookieManager.getInstance()
-        cookieManager.removeAllCookies(null)
-        cookieManager.flush()
+        try {
+            val cookieManager = CookieManager.getInstance()
+            for (domain in DOMAINS) {
+                cookieManager.setCookie(domain, "")
+            }
+            cookieManager.flush()
+        } catch (e: Exception) {
+            // Ignore
+        }
     }
 
     private fun parseCookieString(cookieString: String): Map<String, String> {
@@ -64,9 +84,12 @@ object CookieExtractor {
  * 在 WebView 页面加载完成后检查 URL，判断是否登录成功。
  */
 object LoginUrlChecker {
-    private const val LOGIN_SUCCESS_URL = "joybuilder-console.jdcloud.com/system"
+    private const val LOGIN_SUCCESS_URL = "joybuilder-console.jdcloud.com"
 
     fun isLoginSuccess(url: String): Boolean {
-        return url.contains(LOGIN_SUCCESS_URL) && !url.contains("/login")
+        val hasSuccessDomain = url.contains(LOGIN_SUCCESS_URL)
+        val notLoginPage = !url.contains("/login")
+        val notAuthPage = !url.contains("/uc/login")
+        return hasSuccessDomain && notLoginPage && notAuthPage
     }
 }

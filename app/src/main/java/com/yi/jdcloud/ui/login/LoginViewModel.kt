@@ -1,6 +1,6 @@
 package com.yi.jdcloud.ui.login
 
-import android.webkit.WebView
+import android.webkit.CookieManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yi.jdcloud.data.CookieExtractor
@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,15 +39,36 @@ class LoginViewModel @Inject constructor(
     val quotaInfo: StateFlow<QuotaInfo?> = preferences.quotaInfo
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    init {
+        // Try to load quota on startup if cookies exist
+        viewModelScope.launch {
+            val state = preferences.loginState.first()
+            if (state.isLoggedIn && state.isComplete()) {
+                fetchQuota(state)
+            }
+        }
+    }
+
     fun onWebViewLoginSuccess() {
         _uiState.value = _uiState.value.copy(isExtractingCookies = true)
+
+        // Flush WebView cookies to system cookie manager before extracting
+        try {
+            CookieManager.getInstance().flush()
+        } catch (e: Exception) {
+            // Ignore flush errors
+        }
+
         viewModelScope.launch {
             try {
+                // Small delay to let cookies settle
+                kotlinx.coroutines.delay(500)
+
                 val state = CookieExtractor.extract()
                 if (state.isComplete()) {
                     preferences.saveLoginState(state)
                     _uiState.value = _uiState.value.copy(isExtractingCookies = false)
-                    // Auto-fetch quota after login
+                    // Fetch quota immediately with the extracted state
                     fetchQuota(state)
                 } else {
                     _uiState.value = _uiState.value.copy(
@@ -57,7 +79,7 @@ class LoginViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isExtractingCookies = false,
-                    error = e.message ?: "登录失败"
+                    error = "登录失败: ${e.message}"
                 )
             }
         }
@@ -66,7 +88,14 @@ class LoginViewModel @Inject constructor(
     fun fetchQuota(state: LoginState? = null) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            val currentState = state ?: loginState.value
+            val currentState = state ?: preferences.loginState.first()
+            if (!currentState.isComplete()) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "未登录或 Cookie 不完整"
+                )
+                return@launch
+            }
             val result = quotaRepository.fetchQuota(currentState)
             _uiState.value = _uiState.value.copy(
                 isLoading = false,

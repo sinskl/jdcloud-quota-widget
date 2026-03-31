@@ -35,16 +35,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.yi.jdcloud.data.CookieExtractor
 import com.yi.jdcloud.data.LoginUrlChecker
 import com.yi.jdcloud.domain.QuotaInfo
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -54,7 +53,6 @@ fun LoginScreen(
     val loginState by viewModel.loginState.collectAsState()
     val quotaInfo by viewModel.quotaInfo.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -63,7 +61,6 @@ fun LoginScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Title
         Text(
             text = "京东云 JoyBuilder",
             style = MaterialTheme.typography.headlineMedium,
@@ -82,80 +79,14 @@ fun LoginScreen(
                 onLogout = { viewModel.logout() }
             )
         } else {
-            // Not logged in — show WebView
-            Text(
-                text = "登录京东云控制台",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.align(Alignment.Start)
+            // Not logged in — show WebView login
+            LoginWebViewContent(
+                viewModel = viewModel,
+                isExtractingCookies = uiState.isExtractingCookies
             )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "登录后 App 将自动提取 Cookie 并查询额度",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray,
-                modifier = Modifier.align(Alignment.Start)
-            )
-            Spacer(Modifier.height(12.dp))
-
-            var webViewRef by remember { mutableStateOf<WebView?>(null) }
-
-            if (uiState.isExtractingCookies) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.height(12.dp))
-                        Text("提取 Cookie 中...")
-                    }
-                }
-            } else {
-                AndroidView(
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.userAgentString =
-                                "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-                            webViewClient = object : WebViewClient() {
-                                override fun onPageFinished(view: WebView?, url: String?) {
-                                    super.onPageFinished(view, url ?: "")
-                                    if (LoginUrlChecker.isLoginSuccess(url ?: "")) {
-                                        viewModel.onWebViewLoginSuccess()
-                                    }
-                                }
-                            }
-                            CookieManager.getInstance().apply {
-                                setAcceptCookie(true)
-                            }
-                            loadUrl("https://joybuilder-console.jdcloud.com/login")
-                            webViewRef = this
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(400.dp)
-                )
-
-                Spacer(Modifier.height(12.dp))
-
-                Button(
-                    onClick = {
-                        webViewRef?.let {
-                            it.loadUrl("https://joybuilder-console.jdcloud.com/login")
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("刷新登录页")
-                }
-            }
         }
 
-        // Error snackbar
+        // Error message
         uiState.error?.let { error ->
             Spacer(Modifier.height(12.dp))
             Text(
@@ -163,6 +94,154 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall
             )
+        }
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun LoginWebViewContent(
+    viewModel: LoginViewModel,
+    isExtractingCookies: Boolean
+) {
+    var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    var loginDetected by remember { mutableStateOf(false) }
+
+    Text(
+        text = "登录京东云控制台",
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.align(Alignment.Start)
+    )
+    Spacer(Modifier.height(8.dp))
+    Text(
+        text = "在下方登录后，点击「提取 Cookie 并查询额度」",
+        style = MaterialTheme.typography.bodySmall,
+        color = Color.Gray,
+        modifier = Modifier.align(Alignment.Start)
+    )
+    Spacer(Modifier.height(12.dp))
+
+    when {
+        isExtractingCookies -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text("正在提取 Cookie...")
+                }
+            }
+        }
+        loginDetected -> {
+            // Login detected — show success state with manual trigger button
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFE8F5E9)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "登录成功！",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color(0xFF2E7D32),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "点击下方按钮提取 Cookie 并查询额度",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF555555)
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = { viewModel.onWebViewLoginSuccess() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("提取 Cookie 并查询额度")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { loginDetected = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("重新登录")
+                    }
+                }
+            }
+        }
+        else -> {
+            // Show WebView
+            AndroidView(
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.userAgentString =
+                            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                        settings.loadWithOverviewMode = true
+                        settings.useWideViewPort = true
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                super.onPageFinished(view, url ?: "")
+                                val currentUrl = url ?: ""
+                                // Detect successful login: on console page, not on login/auth pages
+                                if (LoginUrlChecker.isLoginSuccess(currentUrl)) {
+                                    loginDetected = true
+                                }
+                            }
+                        }
+                        CookieManager.getInstance().apply {
+                            setAcceptCookie(true)
+                        }
+                        loadUrl("https://joybuilder-console.jdcloud.com/login")
+                        webViewRef = this
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = {
+                        webViewRef?.loadUrl("https://joybuilder-console.jdcloud.com/login")
+                        loginDetected = false
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("刷新登录页")
+                }
+                OutlinedButton(
+                    onClick = {
+                        webViewRef?.let { wv ->
+                            // Force extract cookies from whatever is currently in WebView
+                            CookieManager.getInstance().flush()
+                            viewModel.onWebViewLoginSuccess()
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("手动提取")
+                }
+            }
         }
     }
 }
@@ -175,16 +254,13 @@ private fun QuotaContent(
     onLogout: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Quota cards
         if (quota != null) {
             QuotaCard(
                 title = quota.planName,
                 subtitle = "默认模型: ${quota.defaultModel}",
                 footer = "到期: ${quota.endTime}"
             )
-
             Spacer(Modifier.height(16.dp))
-
             QuotaProgressCard("5小时", quota.h5Used, quota.h5Limit, quota.h5Percent)
             Spacer(Modifier.height(8.dp))
             QuotaProgressCard("7天", quota.d7Used, quota.d7Limit, quota.d7Percent)
@@ -199,9 +275,17 @@ private fun QuotaContent(
                     modifier = Modifier.padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text("加载中...")
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text("加载中...")
+                    } else {
+                        Text(
+                            text = "点击刷新获取额度",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
         }
@@ -238,11 +322,7 @@ private fun QuotaContent(
 }
 
 @Composable
-private fun QuotaCard(
-    title: String,
-    subtitle: String,
-    footer: String
-) {
+private fun QuotaCard(title: String, subtitle: String, footer: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
