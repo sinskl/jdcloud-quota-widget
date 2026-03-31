@@ -38,7 +38,8 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class LoginActivity : ComponentActivity() {
 
-    private var loginState by mutableStateOf<LoginUiState2>(LoginUiState2.Loading)
+    // Enter the WebView immediately; the previous Loading state had no transition path.
+    private var loginState by mutableStateOf<LoginUiState2>(LoginUiState2.WebViewLogin)
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
