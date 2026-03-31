@@ -150,12 +150,11 @@ class QuotaWidget : GlanceAppWidget() {
                     .fillMaxWidth()
                     .height(4.dp)
                     .background(Color(0xFFEEEEEE))
-            )
+            ) {}
 
-            // Progress bar fill — use a text-based approach since Glance Box doesn't support fillMaxWidth(fraction)
+            // Progress bar fill
             val filledWidth = (pct.coerceIn(0f, 1f) * 100).toInt()
             if (filledWidth > 0) {
-                Spacer(GlanceModifier.height((-4).dp))
                 Box(
                     modifier = GlanceModifier
                         .width(filledWidth.dp)
