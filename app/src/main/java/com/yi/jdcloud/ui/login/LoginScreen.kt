@@ -259,7 +259,7 @@ data class LoginScreenUiState(
     val error: String? = null
 )
 
-@androidx.lifecycle.HiltViewModel
+@dagger.hilt.android.lifecycle.HiltViewModel
 class LoginScreenViewModel @javax.inject.Inject constructor(
     private val preferences: com.yi.jdcloud.data.Preferences,
     private val quotaRepository: com.yi.jdcloud.data.QuotaRepository
