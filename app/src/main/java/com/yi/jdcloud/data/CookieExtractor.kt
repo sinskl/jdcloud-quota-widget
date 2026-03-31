@@ -1,7 +1,6 @@
 package com.yi.jdcloud.data
 
 import android.webkit.CookieManager
-import android.webkit.ValueCallback
 import com.yi.jdcloud.domain.LoginState
 
 /**

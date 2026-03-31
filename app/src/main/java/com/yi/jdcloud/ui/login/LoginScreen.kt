@@ -19,6 +19,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import com.yi.jdcloud.domain.QuotaInfo as QuotaModel
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -265,7 +271,7 @@ class LoginScreenViewModel @javax.inject.Inject constructor(
     private val quotaRepository: com.yi.jdcloud.data.QuotaRepository
 ) : androidx.lifecycle.ViewModel() {
 
-    private val _uiState = MutableStateFlow(LoginScreenUiState())
+    private val _uiState = kotlinx.coroutines.flow.MutableStateFlow(LoginScreenUiState())
     val uiState: kotlinx.coroutines.flow.StateFlow<LoginScreenUiState> = _uiState
 
     init {

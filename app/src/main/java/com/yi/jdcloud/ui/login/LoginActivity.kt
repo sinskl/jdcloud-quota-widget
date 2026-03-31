@@ -56,6 +56,15 @@ class LoginActivity : ComponentActivity() {
         setContent {
             JdCloudTheme {
                 when (val state = loginState) {
+                    is LoginUiState2.Extracting -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.height(12.dp))
+                                Text("提取 Cookie 中...")
+                            }
+                        }
+                    }
                     is LoginUiState2.Loading -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
