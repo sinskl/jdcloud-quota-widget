@@ -2,6 +2,7 @@ package com.yi.jdcloud.ui.login
 
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,12 +20,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import com.yi.jdcloud.domain.QuotaInfo as QuotaModel
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,8 +34,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.yi.jdcloud.domain.QuotaInfo as QuotaModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+import com.yi.jdcloud.data.Preferences
+import com.yi.jdcloud.data.QuotaRepository
+import com.yi.jdcloud.domain.QuotaInfo
 
 @Composable
 fun LoginScreen(
@@ -51,7 +55,6 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // Refresh when refreshKey changes (from MainActivity after login)
     LaunchedEffect(refreshKey) {
         viewModel.tryAutoFetch()
     }
@@ -78,13 +81,15 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
                 ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(48.dp))
-                        Spacer(Modifier.height(12.dp))
-                        Text("加载中...")
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                            Spacer(Modifier.height(12.dp))
+                            Text("加载中...")
+                        }
                     }
                 }
             }
@@ -104,7 +109,7 @@ fun LoginScreen(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text("已登录，点击刷新获取额度")
@@ -137,9 +142,7 @@ private fun NotLoggedInCard(onLoginClick: () -> Unit) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("🔴", style = MaterialTheme.typography.headlineLarge)
@@ -166,7 +169,7 @@ private fun NotLoggedInCard(onLoginClick: () -> Unit) {
 
 @Composable
 private fun QuotaContent(
-    quota: QuotaModel,
+    quota: QuotaInfo,
     onRefresh: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -260,19 +263,19 @@ private fun QuotaProgressCard(label: String, used: Int, limit: Int, pct: Float) 
 
 data class LoginScreenUiState(
     val isLoggedIn: Boolean = false,
-    val quota: QuotaModel? = null,
+    val quota: QuotaInfo? = null,
     val isLoading: Boolean = false,
     val error: String? = null
 )
 
-@dagger.hilt.android.lifecycle.HiltViewModel
-class LoginScreenViewModel @javax.inject.Inject constructor(
-    private val preferences: com.yi.jdcloud.data.Preferences,
-    private val quotaRepository: com.yi.jdcloud.data.QuotaRepository
-) : androidx.lifecycle.ViewModel() {
+@HiltViewModel
+class LoginScreenViewModel @Inject constructor(
+    private val preferences: Preferences,
+    private val quotaRepository: QuotaRepository
+) : ViewModel() {
 
-    private val _uiState = kotlinx.coroutines.flow.MutableStateFlow(LoginScreenUiState())
-    val uiState: kotlinx.coroutines.flow.StateFlow<LoginScreenUiState> = _uiState
+    private val _uiState = MutableStateFlow(LoginScreenUiState())
+    val uiState: StateFlow<LoginScreenUiState> = _uiState
 
     init {
         viewModelScope.launch {
