@@ -25,10 +25,11 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("release-keystore.jks")
+            storeFile = file("release-keystore.p12")
             storePassword = System.getenv("KEYSTORE_PASS") ?: "changeit"
             keyAlias = "quota-monitor"
             keyPassword = System.getenv("KEY_PASS") ?: "changeit"
+            storeType = "PKCS12"
         }
     }
 
