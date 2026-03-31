@@ -130,8 +130,8 @@ fun LoginScreen(
                             }
                             CookieManager.getInstance().apply {
                                 setAcceptCookie(true)
-                                setAcceptThirdPartyCookies(this, true)
                             }
+                            setAcceptThirdPartyCookies(this, true)
                             loadUrl("https://joybuilder-console.jdcloud.com/login")
                             webViewRef = this
                         }
@@ -148,8 +148,8 @@ fun LoginScreen(
                         webViewRef?.let {
                             CookieManager.getInstance().apply {
                                 setAcceptCookie(true)
-                                setAcceptThirdPartyCookies(this, true)
                             }
+                            it.setAcceptThirdPartyCookies(it, true)
                             it.loadUrl("https://joybuilder-console.jdcloud.com/login")
                         }
                     },

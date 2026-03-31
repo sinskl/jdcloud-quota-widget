@@ -22,6 +22,7 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -29,6 +30,7 @@ import androidx.glance.unit.ColorProvider
 import androidx.glance.appwidget.cornerRadius
 import androidx.compose.ui.graphics.Color
 import com.yi.jdcloud.MainActivity
+import com.yi.jdcloud.data.Preferences
 import com.yi.jdcloud.domain.QuotaInfo as QuotaModel
 import kotlinx.coroutines.flow.first
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -39,10 +41,8 @@ import com.yi.jdcloud.worker.QuotaRefreshWorker
 class QuotaWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // Load quota from DataStore (read-only, safe for widget)
         val quota = try {
-            val prefs = Preferences(context)
-            prefs.quotaInfo.first()
+            Preferences(context).quotaInfo.first()
         } catch (e: Exception) {
             null
         }
@@ -98,23 +98,22 @@ class QuotaWidget : GlanceAppWidget() {
                             color = ColorProvider(Color.Gray),
                             fontSize = 12.sp
                         ),
-                        modifier = GlanceModifier.align(Alignment.CenterHorizontally)
+                        modifier = GlanceModifier.fillMaxWidth()
                     )
                     Spacer(GlanceModifier.defaultWeight())
                 } else {
-                    QuotaRow("5小时", quota.h5Used, quota.h5Limit)
+                    QuotaRow("5小时", quota.h5Used, quota.h5Limit, quota.h5Percent)
                     Spacer(GlanceModifier.height(6.dp))
-                    QuotaRow("7天", quota.d7Used, quota.d7Limit)
+                    QuotaRow("7天", quota.d7Used, quota.d7Limit, quota.d7Percent)
                     Spacer(GlanceModifier.height(6.dp))
-                    QuotaRow("本月", quota.monthUsed, quota.monthLimit)
+                    QuotaRow("本月", quota.monthUsed, quota.monthLimit, quota.monthPercent)
                 }
             }
         }
     }
 
     @Composable
-    private fun QuotaRow(label: String, used: Int, limit: Int) {
-        val pct = if (limit > 0) (used.toFloat() / limit) else 0f
+    private fun QuotaRow(label: String, used: Int, limit: Int, pct: Float) {
         val barColor = when {
             pct > 0.8f -> Color(0xFFE2231A)
             pct > 0.5f -> Color(0xFFFF9800)
@@ -144,18 +143,25 @@ class QuotaWidget : GlanceAppWidget() {
                 )
             }
             Spacer(GlanceModifier.height(3.dp))
+
+            // Progress bar background
             Box(
                 modifier = GlanceModifier
                     .fillMaxWidth()
                     .height(4.dp)
                     .background(Color(0xFFEEEEEE))
-            ) {
+            )
+
+            // Progress bar fill — use a text-based approach since Glance Box doesn't support fillMaxWidth(fraction)
+            val filledWidth = (pct.coerceIn(0f, 1f) * 100).toInt()
+            if (filledWidth > 0) {
+                Spacer(GlanceModifier.height((-4).dp))
                 Box(
                     modifier = GlanceModifier
-                        .fillMaxWidth(pct.coerceIn(0f, 1f))
+                        .width(filledWidth.dp)
                         .height(4.dp)
                         .background(barColor)
-                )
+                ) {}
             }
         }
     }
@@ -168,7 +174,8 @@ class QuotaWidgetReceiver : GlanceAppWidgetReceiver() {
 object WidgetScheduler {
     fun schedule(context: Context, intervalHours: Int) {
         val workRequest = PeriodicWorkRequestBuilder<QuotaRefreshWorker>(
-            intervalHours.toLong(), java.util.concurrent.TimeUnit.HOURS
+            intervalHours.toLong(),
+            java.util.concurrent.TimeUnit.HOURS
         ).build()
 
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
