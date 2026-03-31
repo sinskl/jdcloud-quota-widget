@@ -110,14 +110,14 @@ private fun LoginWebViewContent(
     Text(
         text = "登录京东云控制台",
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.align(Alignment.Start)
+        modifier = Modifier.fillMaxWidth()
     )
     Spacer(Modifier.height(8.dp))
     Text(
         text = "在下方登录后，点击「提取 Cookie 并查询额度」",
         style = MaterialTheme.typography.bodySmall,
         color = Color.Gray,
-        modifier = Modifier.align(Alignment.Start)
+        modifier = Modifier.fillMaxWidth()
     )
     Spacer(Modifier.height(12.dp))
 
