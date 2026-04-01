@@ -1,10 +1,10 @@
-# JD Cloud Quota Widget — 项目规格
+# 通用额度监控 Widget — 项目规格
 
 ## 1. 项目概述
 
 **名称：** JDCloud Quota Widget  
-**功能：** 登录京东云 JoyBuilder，自动提取 Cookie，定时查询套餐额度，在桌面小组件显示  
-**目标用户：** 京东云 JoyBuilder 订阅用户（自用）  
+**功能：** 登录通用 JoyBuilder，自动提取 Cookie，定时查询套餐额度，在桌面小组件显示  
+**目标用户：** 通用 JoyBuilder 订阅用户（自用）  
 **平台：** Android（minSdk 26, targetSdk 34）
 
 ---
@@ -28,7 +28,7 @@
 ## 3. 功能列表
 
 ### 3.1 登录模块
-- 京东云 JoyBuilder WebView 登录页
+- 通用 JoyBuilder WebView 登录页
 - 自动拦截并提取 Cookie（pin, thor, qid_uid, qid_sid, jdv）
 - 登录成功后显示"已登录"状态
 - 退出登录（清除本地 Cookie）
